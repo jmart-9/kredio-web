@@ -54,7 +54,6 @@ export function Portfolios() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Estados para el modal de crear/editar
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentPortfolio, setCurrentPortfolio] = useState<Portfolio | null>(null);
@@ -64,7 +63,6 @@ export function Portfolios() {
     assignedUserId: '',
   });
 
-  // Estados para el modal de eliminación
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -119,7 +117,8 @@ export function Portfolios() {
       const payload = {
         name: formData.name,
         description: formData.description,
-        assignedUserId: formData.assignedUserId || null,
+        // ✅ CORRECCIÓN: Enviar null en lugar de "none"
+        assignedUserId: formData.assignedUserId === 'none' ? null : formData.assignedUserId,
       };
 
       if (isEditing && currentPortfolio) {
@@ -178,7 +177,6 @@ export function Portfolios() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Carteras</h1>
@@ -190,7 +188,6 @@ export function Portfolios() {
         </Button>
       </div>
 
-      {/* Dashboard de Métricas Consolidadas */}
       {metrics && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -201,9 +198,9 @@ export function Portfolios() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {formatCurrency(metrics.totalPortfolio)}
+                  {formatCurrency(metrics.totalPortfolio ?? 0)}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">{metrics.totalLoans} préstamos totales</p>
+                <p className="text-xs text-gray-500 mt-1">{metrics.totalLoans ?? 0} préstamos totales</p>
               </CardContent>
             </Card>
 
@@ -214,9 +211,9 @@ export function Portfolios() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(metrics.activePortfolio)}
+                  {formatCurrency(metrics.activePortfolio ?? 0)}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">{metrics.activeLoans} préstamos activos</p>
+                <p className="text-xs text-gray-500 mt-1">{metrics.activeLoans ?? 0} préstamos activos</p>
               </CardContent>
             </Card>
 
@@ -227,9 +224,9 @@ export function Portfolios() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">
-                  {formatCurrency(metrics.overduePortfolio)}
+                  {formatCurrency(metrics.overduePortfolio ?? 0)}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">{metrics.overdueLoans} préstamos vencidos</p>
+                <p className="text-xs text-gray-500 mt-1">{metrics.overdueLoans ?? 0} préstamos vencidos</p>
               </CardContent>
             </Card>
 
@@ -240,21 +237,20 @@ export function Portfolios() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-orange-600">
-                  {metrics.defaultRate?.toFixed(2) || '0.00'}%
+                  {(metrics.defaultRate ?? 0).toFixed(2)}%
                 </div>
-                <p className="text-xs text-gray-500 mt-1">{metrics.completedLoans} préstamos completados</p>
+                <p className="text-xs text-gray-500 mt-1">{metrics.completedLoans ?? 0} préstamos completados</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* PAR */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-medium text-yellow-700">PAR 30 días</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-xl font-bold text-yellow-600">{formatCurrency(metrics.par30)}</div>
+                <div className="text-xl font-bold text-yellow-600">{formatCurrency(metrics.par30 ?? 0)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -262,7 +258,7 @@ export function Portfolios() {
                 <CardTitle className="text-sm font-medium text-orange-700">PAR 60 días</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-xl font-bold text-orange-600">{formatCurrency(metrics.par60)}</div>
+                <div className="text-xl font-bold text-orange-600">{formatCurrency(metrics.par60 ?? 0)}</div>
               </CardContent>
             </Card>
             <Card>
@@ -270,14 +266,13 @@ export function Portfolios() {
                 <CardTitle className="text-sm font-medium text-red-700">PAR 90 días</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-xl font-bold text-red-600">{formatCurrency(metrics.par90)}</div>
+                <div className="text-xl font-bold text-red-600">{formatCurrency(metrics.par90 ?? 0)}</div>
               </CardContent>
             </Card>
           </div>
         </>
       )}
 
-      {/* Lista de Carteras */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -287,9 +282,7 @@ export function Portfolios() {
         </CardHeader>
         <CardContent>
           {portfolios.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No hay carteras registradas
-            </div>
+            <div className="text-center py-8 text-gray-500">No hay carteras registradas</div>
           ) : (
             <Table>
               <TableHeader>
@@ -318,18 +311,10 @@ export function Portfolios() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/portfolios/${portfolio.id}`)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => navigate(`/portfolios/${portfolio.id}`)}>
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenModal(portfolio)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleOpenModal(portfolio)}>
                           <Edit className="w-4 h-4" />
                         </Button>
                         <Button
@@ -337,6 +322,8 @@ export function Portfolios() {
                           size="sm"
                           onClick={() => handleOpenDeleteModal(portfolio)}
                           className="text-red-600 hover:text-red-700"
+                          disabled={portfolio.totalClients > 0}
+                          title={portfolio.totalClients > 0 ? "Transfiere los clientes primero" : "Eliminar cartera"}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -352,7 +339,7 @@ export function Portfolios() {
 
       {/* Modal de Crear/Editar */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-md" style={{ overflow: 'visible' }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{isEditing ? 'Editar Cartera' : 'Nueva Cartera'}</DialogTitle>
             <DialogDescription>
@@ -381,13 +368,13 @@ export function Portfolios() {
             <div className="space-y-2">
               <Label htmlFor="assignedUserId">Cobrador Asignado</Label>
               <Select
-                value={formData.assignedUserId}
+                value={formData.assignedUserId || 'none'}
                 onValueChange={(value) => setFormData({ ...formData, assignedUserId: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona un cobrador" />
                 </SelectTrigger>
-                <SelectContent position="popper" className="z-50 bg-white border border-gray-200 shadow-lg" sideOffset={4}>
+                <SelectContent className="z-50 bg-white border border-gray-200 shadow-lg">
                   <SelectItem value="none">Sin asignar</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
@@ -399,12 +386,8 @@ export function Portfolios() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSubmit}>
-              {isEditing ? 'Guardar Cambios' : 'Crear Cartera'}
-            </Button>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSubmit}>{isEditing ? 'Guardar Cambios' : 'Crear Cartera'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -431,7 +414,6 @@ export function Portfolios() {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Información de la cartera a eliminar */}
           {portfolioToDelete && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-2">
               <div className="flex items-center gap-3">
@@ -448,10 +430,9 @@ export function Portfolios() {
             </div>
           )}
 
-          {/* Campo de confirmación */}
           <div className="space-y-2 mt-4">
             <Label htmlFor="deleteConfirm">
-              Para confirmar, escribe <span className="font-bold text-red-600">ELIMINAR</span> en el campo de abajo:
+              Para confirmar, escribe <span className="font-bold text-red-600">ELIMINAR</span>:
             </Label>
             <Input
               id="deleteConfirm"
@@ -463,7 +444,6 @@ export function Portfolios() {
             />
           </div>
 
-          {/* Advertencia */}
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-2">
             <div className="flex items-start gap-2">
               <span className="text-red-600 text-lg">⚠️</span>
@@ -479,20 +459,13 @@ export function Portfolios() {
           </div>
 
           <DialogFooter className="mt-4">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setIsDeleteModalOpen(false);
-                setDeleteConfirmText('');
-                setPortfolioToDelete(null);
-              }}
-            >
+            <Button variant="outline" onClick={() => { setIsDeleteModalOpen(false); setDeleteConfirmText(''); setPortfolioToDelete(null); }}>
               Cancelar
             </Button>
             <Button 
               onClick={handleDelete} 
               disabled={isDeleting || deleteConfirmText !== 'ELIMINAR' || (portfolioToDelete?.totalClients || 0) > 0}
-              className="bg-red-600 hover:bg-red-700 text-white border-red-600 hover:border-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
+              className="bg-red-600 hover:bg-red-700 text-white disabled:bg-red-300 disabled:cursor-not-allowed"
             >
               {isDeleting ? 'Eliminando...' : 'Sí, Eliminar Cartera'}
             </Button>

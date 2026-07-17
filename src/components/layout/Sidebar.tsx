@@ -3,12 +3,13 @@ import { LayoutDashboard, Users, Briefcase, Settings, CreditCard, FileText } fro
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/useAuthStore';
 
-// ✅ AGREGAMOS 'requiredPermission' A CADA ÍTEM
+// ✅ AGREGAMOS 'Reportes' AL MENÚ
 const menuItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, requiredPermission: 'REPORT:VIEW' },
   { to: '/clients', label: 'Clientes', icon: Users, requiredPermission: 'CLIENT:READ' },
   { to: '/loans', label: 'Préstamos', icon: CreditCard, requiredPermission: 'LOAN:READ' },
   { to: '/portfolios', label: 'Carteras', icon: Briefcase, requiredPermission: 'REPORT:VIEW' },
+  { to: '/reports', label: 'Reportes', icon: FileText, requiredPermission: 'REPORT:VIEW' }, // ✅ NUEVA OPCIÓN
   { to: '/users', label: 'Usuarios', icon: Settings, requiredPermission: 'USER:READ' },
 ];
 

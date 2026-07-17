@@ -9,6 +9,9 @@ import { Portfolios } from '@/pages/portfolios/Portfolios';
 import { PortfolioDetail } from '@/pages/portfolios/PortfolioDetail';
 import { LoanForm } from '@/pages/loans/LoanForm';
 import { Loans } from '@/pages/loans/Loans';
+import { LoanDetail } from '@/pages/loans/LoanDetail';
+import { Users } from '@/pages/users/Users';
+import { Reports } from '@/pages/reports/Reports';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore();
@@ -36,7 +39,11 @@ function App() {
           <Route path="/loans/new" element={<LoanForm />} />
           <Route path="/loans" element={<Loans />} />
           <Route path="portfolio" element={<div className="text-2xl font-bold">Cartera - Próximamente</div>} />
-          <Route path="users" element={<div className="text-2xl font-bold">Usuarios - Próximamente</div>} />
+          <Route path="/loans" element={<Loans />} />
+          <Route path="/loans/new" element={<LoanForm />} />
+          <Route path="/loans/:id" element={<LoanDetail />} />
+          <Route path="/users" element={<Users />} />
+          <Route path="/reports" element={<Reports />} />
         </Route>
       </Routes>
     </BrowserRouter>

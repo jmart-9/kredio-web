@@ -52,8 +52,65 @@ export function Dashboard() {
       setStats(response.data);
     } catch (error) {
       console.error('Error loading dashboard:', error);
+      loadBasicStats();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadBasicStats = async () => {
+    try {
+      const [loansRes, clientsRes] = await Promise.all([
+        api.get('/loans'),
+        api.get('/clients'),
+      ]);
+
+      const loans = loansRes.data;
+      const clients = clientsRes.data;
+
+      const activeLoans = loans.filter((l: any) => l.status === 'ACTIVE').length;
+      const paidLoans = loans.filter((l: any) => l.status === 'PAID').length;
+      const overdueLoans = loans.filter((l: any) => l.status === 'DEFAULTED').length;
+
+      setStats({
+        totalClients: clients.length,
+        totalLoans: loans.length,
+        activeLoans,
+        paidLoans,
+        overdueLoans,
+        totalPortfolio: loans.reduce((sum: number, loan: any) => sum + loan.principalAmount, 0),
+        activePortfolio: loans.filter((l: any) => l.status === 'ACTIVE').reduce((sum: number, loan: any) => sum + loan.currentBalance, 0),
+        overdueAmount: 0,
+        collectedAmount: 0,
+        upcomingPaymentsAmount: 0,
+        upcomingPaymentsCount: 0,
+        upcomingPayments: [],
+        monthlyLoans: [],
+        loansByStatus: {
+          ACTIVE: activeLoans,
+          PAID: paidLoans,
+          DEFAULTED: overdueLoans,
+        },
+      });
+    } catch (error) {
+      console.error('Error loading basic stats:', error);
+    }
+  };
+
+  const handleUpdateOverdue = async () => {
+    try {
+      const response = await api.post('/overdue/update');
+      const { updatedSchedules } = response.data;
+      
+      if (updatedSchedules > 0) {
+        alert(`✅ Se actualizaron ${updatedSchedules} cuotas vencidas`);
+        loadStats();
+      } else {
+        alert('ℹ️ No hay cuotas vencidas para actualizar');
+      }
+    } catch (error) {
+      console.error('Error updating overdue:', error);
+      alert('❌ Error al actualizar morosidad');
     }
   };
 
@@ -73,14 +130,12 @@ export function Dashboard() {
     );
   }
 
-  // Preparar datos para el gráfico de barras
   const barChartData = stats.monthlyLoans.map(m => ({
     name: m.month,
     'Desembolsado': m.disbursed,
     'Recaudado': m.collected,
   }));
 
-  // Preparar datos para el gráfico circular
   const pieChartData = Object.entries(stats.loansByStatus).map(([status, count]) => ({
     name: status === 'ACTIVE' ? 'Activos' : status === 'PAID' ? 'Pagados' : status === 'DEFAULTED' ? 'Morosos' : status,
     value: count,
@@ -88,13 +143,19 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-        <p className="text-gray-500 mt-1">Resumen general de tu financiera</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
+          <p className="text-gray-500 mt-1">Resumen general de tu financiera</p>
+        </div>
+        <button
+          onClick={handleUpdateOverdue}
+          className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition"
+        >
+          🔄 Actualizar Morosidad
+        </button>
       </div>
 
-      {/* Tarjetas de métricas principales */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -103,9 +164,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalLoans}</div>
-            <p className="text-xs text-gray-500 mt-1">
-              {stats.activeLoans} activos · {stats.paidLoans} pagados
-            </p>
+            <p className="text-xs text-gray-500 mt-1">{stats.activeLoans} activos · {stats.paidLoans} pagados</p>
           </CardContent>
         </Card>
 
@@ -143,7 +202,6 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {/* Tarjetas secundarias */}
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="border-l-4 border-l-green-500">
           <CardHeader className="pb-2">
@@ -175,9 +233,7 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {/* Gráficos */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Gráfico de barras: Desembolsos vs Recaudado */}
         <Card>
           <CardHeader>
             <CardTitle>Préstamos por Mes (Últimos 6 meses)</CardTitle>
@@ -189,6 +245,7 @@ export function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
+                  {/* ✅ CORREGIDO: Manejar undefined en value */}
                   <Tooltip formatter={(value) => formatCurrency(Number(value) || 0)} />
                   <Legend />
                   <Bar dataKey="Desembolsado" fill="#3b82f6" />
@@ -203,7 +260,6 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Gráfico circular: Distribución por estado */}
         <Card>
           <CardHeader>
             <CardTitle>Distribución de Préstamos por Estado</CardTitle>
@@ -238,7 +294,6 @@ export function Dashboard() {
         </Card>
       </div>
 
-      {/* Próximos vencimientos */}
       {stats.upcomingPayments.length > 0 && (
         <Card>
           <CardHeader>
@@ -276,7 +331,6 @@ export function Dashboard() {
         </Card>
       )}
 
-      {/* Alerta de mora */}
       {stats.overdueAmount > 0 && (
         <Card className="border-red-200 bg-red-50">
           <CardContent className="flex items-center gap-4 py-4">

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, DollarSign, TrendingUp, TrendingDown, AlertTriangle, Users, Briefcase, MoveRight } from 'lucide-react';
+import { ArrowLeft, DollarSign, TrendingUp, TrendingDown, AlertTriangle, Users, Briefcase, MoveRight, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
@@ -52,6 +52,7 @@ export function PortfolioDetail() {
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [portfolios, setPortfolios] = useState<PortfolioOption[]>([]);
   const [loading, setLoading] = useState(true);
+  
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [targetPortfolioId, setTargetPortfolioId] = useState('');
@@ -133,7 +134,6 @@ export function PortfolioDetail() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate('/portfolios')}>
           <ArrowLeft className="w-5 h-5" />
@@ -147,7 +147,6 @@ export function PortfolioDetail() {
         </div>
       </div>
 
-      {/* Métricas de la Cartera */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -155,8 +154,8 @@ export function PortfolioDetail() {
             <DollarSign className="w-4 h-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{formatCurrency(metrics.totalPortfolio)}</div>
-            <p className="text-xs text-gray-500 mt-1">{metrics.totalLoans} préstamos totales</p>
+            <div className="text-2xl font-bold text-blue-600">{formatCurrency(metrics.totalPortfolio ?? 0)}</div>
+            <p className="text-xs text-gray-500 mt-1">{metrics.totalLoans ?? 0} préstamos totales</p>
           </CardContent>
         </Card>
 
@@ -166,8 +165,8 @@ export function PortfolioDetail() {
             <TrendingUp className="w-4 h-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(metrics.activePortfolio)}</div>
-            <p className="text-xs text-gray-500 mt-1">{metrics.activeLoans} préstamos activos</p>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(metrics.activePortfolio ?? 0)}</div>
+            <p className="text-xs text-gray-500 mt-1">{metrics.activeLoans ?? 0} préstamos activos</p>
           </CardContent>
         </Card>
 
@@ -177,8 +176,8 @@ export function PortfolioDetail() {
             <TrendingDown className="w-4 h-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(metrics.overduePortfolio)}</div>
-            <p className="text-xs text-gray-500 mt-1">{metrics.overdueLoans} préstamos vencidos</p>
+            <div className="text-2xl font-bold text-red-600">{formatCurrency(metrics.overduePortfolio ?? 0)}</div>
+            <p className="text-xs text-gray-500 mt-1">{metrics.overdueLoans ?? 0} préstamos vencidos</p>
           </CardContent>
         </Card>
 
@@ -188,20 +187,19 @@ export function PortfolioDetail() {
             <AlertTriangle className="w-4 h-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{metrics.defaultRate?.toFixed(2) || '0.00'}%</div>
-            <p className="text-xs text-gray-500 mt-1">{metrics.completedLoans} préstamos completados</p>
+            <div className="text-2xl font-bold text-orange-600">{(metrics.defaultRate ?? 0).toFixed(2)}%</div>
+            <p className="text-xs text-gray-500 mt-1">{metrics.completedLoans ?? 0} préstamos completados</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* PAR */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium text-yellow-700">PAR 30 días</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold text-yellow-600">{formatCurrency(metrics.par30)}</div>
+            <div className="text-xl font-bold text-yellow-600">{formatCurrency(metrics.par30 ?? 0)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -209,7 +207,7 @@ export function PortfolioDetail() {
             <CardTitle className="text-sm font-medium text-orange-700">PAR 60 días</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold text-orange-600">{formatCurrency(metrics.par60)}</div>
+            <div className="text-xl font-bold text-orange-600">{formatCurrency(metrics.par60 ?? 0)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -217,12 +215,11 @@ export function PortfolioDetail() {
             <CardTitle className="text-sm font-medium text-red-700">PAR 90 días</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl font-bold text-red-600">{formatCurrency(metrics.par90)}</div>
+            <div className="text-xl font-bold text-red-600">{formatCurrency(metrics.par90 ?? 0)}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Clientes en la Cartera */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -251,20 +248,31 @@ export function PortfolioDetail() {
                   <TableRow key={client.id}>
                     <TableCell className="font-medium">{client.fullName}</TableCell>
                     <TableCell>{client.dpiOrId}</TableCell>
-                    <TableCell>{client.phone}</TableCell>
-                    <TableCell>{client.address}</TableCell>
+                    <TableCell>{client.phone || 'N/A'}</TableCell>
+                    <TableCell className="max-w-xs truncate">{client.address || 'N/A'}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedClient(client);
-                          setIsTransferModalOpen(true);
-                        }}
-                      >
-                        <MoveRight className="w-4 h-4 mr-1" />
-                        Transferir
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/clients/${client.id}`)}
+                          title="Ver perfil del cliente"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedClient(client);
+                            setIsTransferModalOpen(true);
+                          }}
+                          title="Transferir a otra cartera"
+                        >
+                          <MoveRight className="w-4 h-4 mr-1" />
+                          Transferir
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -274,9 +282,8 @@ export function PortfolioDetail() {
         </CardContent>
       </Card>
 
-      {/* Modal de Transferencia */}
       <Dialog open={isTransferModalOpen} onOpenChange={setIsTransferModalOpen}>
-        <DialogContent className="max-w-md" style={{ overflow: 'visible' }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Briefcase className="w-5 h-5" />
@@ -297,12 +304,16 @@ export function PortfolioDetail() {
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona una cartera" />
                 </SelectTrigger>
-                <SelectContent position="popper" className="z-50 bg-white border border-gray-200 shadow-lg" sideOffset={4}>
-                  {portfolios.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
+                <SelectContent className="z-50 bg-white border border-gray-200 shadow-lg">
+                  {portfolios.length === 0 ? (
+                    <SelectItem value="none" disabled>No hay otras carteras disponibles</SelectItem>
+                  ) : (
+                    portfolios.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
