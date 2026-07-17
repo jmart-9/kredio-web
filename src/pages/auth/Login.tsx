@@ -37,12 +37,15 @@ export function Login() {
     try {
       const response = await api.post<LoginResponse>('/auth/login', data);
       
+      // ✅ Agregamos roleName y permissions con valores de respaldo (fallback)
       const userData: User = {
         id: response.data.userId,
         fullName: response.data.fullName,
         email: response.data.email,
         role: response.data.role,
+        roleName: response.data.roleName || response.data.role, 
         tenantId: response.data.tenantId,
+        permissions: response.data.permissions || [], 
       };
       
       login(userData, response.data.token);

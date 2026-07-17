@@ -34,6 +34,7 @@ export function ClientDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { countryCode, user } = useAuthStore();
+  
   const [client, setClient] = useState<Client | null>(null);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [schedules, setSchedules] = useState<LoanSchedule[]>([]);
@@ -85,15 +86,16 @@ export function ClientDetail() {
         api.get(`/loans/${loan.id}/schedules`)
       );
       const schedulesResponses = await Promise.all(schedulesPromises);
-      const allSchedules = schedulesResponses.flatMap((res) => 
+      const allSchedules = schedulesResponses.flatMap((res, index) => 
         res.data.map((schedule: any) => ({
           ...schedule,
-          loanId: res.data[0]?.loanId || loansRes.data[0]?.id
+          loanId: loansRes.data[index]?.id // ✅ CORREGIDO: Asignar el loanId correcto
         }))
       );
       setSchedules(allSchedules);
     } catch (error) {
       console.error('Error loading client:', error);
+      toast.error('Error al cargar la información del cliente');
     } finally {
       setLoading(false);
     }
@@ -134,9 +136,7 @@ export function ClientDetail() {
       setIsEditModalOpen(false);
       loadClientData();
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 
-                           error.response?.data?.error || 
-                           'Error al actualizar el cliente';
+      const errorMessage = error.response?.data?.message || 'Error al actualizar el cliente';
       toast.error(errorMessage);
     } finally {
       setIsSaving(false);
@@ -145,11 +145,8 @@ export function ClientDetail() {
 
   const handleOpenPaymentModal = (schedule: LoanSchedule) => {
     setSelectedSchedule(schedule);
-    
-    // Buscar el préstamo asociado a esta cuota
     const loan = loans.find(l => l.id === schedule.loanId);
     setSelectedLoan(loan || null);
-    
     setPaymentForm({
       amountPaid: schedule.expectedAmount.toString(),
       method: 'CASH',
@@ -162,27 +159,41 @@ export function ClientDetail() {
       toast.error('Error: No se encontró el préstamo');
       return;
     }
+
+    // ✅ VALIDACIÓN CRÍTICA: Evita que se quede "colgado" si no hay usuario
+    if (!user?.id) {
+      toast.error('Error de sesión: No se pudo identificar al cobrador. Inicia sesión nuevamente.');
+      return;
+    }
     
     setIsSaving(true);
     try {
-      // ✅ ADAPTADO A TU API EXISTENTE
-      await api.post('/payments', {
+      const payload = {
         loanId: selectedLoan.id,
         amountPaid: parseFloat(paymentForm.amountPaid),
-        collectorId: user?.id, // El cobrador es el usuario actual
+        collectorId: user.id,
         method: paymentForm.method,
         isPrinted: false,
         syncedFromOffline: false,
-      });
+      };
+
+      console.log('📤 Enviando pago:', payload); // ✅ LOG DE DEPURACIÓN
+
+      await api.post('/payments', payload);
       
       toast.success('Pago registrado correctamente');
       setIsPaymentModalOpen(false);
-      loadClientData();
+      loadClientData(); // Recarga los datos para actualizar el estado de la cuota
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Error al registrar el pago';
+      console.error('❌ Error al registrar el pago:', error);
+      console.error('❌ Respuesta del servidor:', error.response?.data); // ✅ LOG DE ERROR DETALLADO
+      
+      const errorMessage = error.response?.data?.message || 
+                           error.response?.data?.errors?.[0]?.defaultMessage || 
+                           'Error al registrar el pago';
       toast.error(errorMessage);
     } finally {
-      setIsSaving(false);
+      setIsSaving(false); // ✅ SIEMPRE se ejecuta, evitando que se quede "Confirmando..."
     }
   };
 
@@ -254,16 +265,24 @@ export function ClientDetail() {
     };
 
     return (
-      <Badge className={variants[status]}>
-        {labels[status]}
+      <Badge className={variants[status] || 'bg-gray-100 text-gray-800'}>
+        {labels[status] || status}
       </Badge>
     );
   };
 
+  // ✅ CÁLCULOS 100% PRECISOS BASADOS EN EL CALENDARIO DE PAGOS REAL
   const totalLoanAmount = loans.reduce((sum, loan) => sum + loan.principalAmount, 0);
+  
   const totalPaid = schedules
     .filter((s) => s.status === 'PAID')
     .reduce((sum, s) => sum + s.expectedAmount, 0);
+
+  const totalPending = schedules
+    .filter((s) => s.status === 'PENDING' || s.status === 'OVERDUE')
+    .reduce((sum, s) => sum + s.expectedAmount, 0);
+
+  const totalExpectedToPay = totalPaid + totalPending; // Suma exacta de todas las cuotas generadas
 
   const currentPortfolio = portfolios.find(p => p.id === (client as any).portfolioId);
 
@@ -360,19 +379,19 @@ export function ClientDetail() {
             </div>
 
             <div>
-              <p className="text-sm text-gray-500">Mora:</p>
-              <p className="font-medium text-red-600">$0.00</p>
+              <p className="text-sm text-gray-500">Saldo Pendiente:</p>
+              <p className="font-medium text-orange-600">{formatCurrency(totalPending)}</p>
             </div>
 
             <div>
-              <p className="text-sm text-gray-500">Préstamo Total:</p>
+              <p className="text-sm text-gray-500">Capital Prestado:</p>
               <p className="font-medium">{formatCurrency(totalLoanAmount)}</p>
             </div>
 
             <div>
-              <p className="text-sm text-gray-500">Préstamo Total + Interés:</p>
+              <p className="text-sm text-gray-500">Total a Pagar (Capital + Interés):</p>
               <p className="font-medium text-blue-600">
-                {formatCurrency(totalLoanAmount * 1.15)}
+                {formatCurrency(totalExpectedToPay)} {/* ✅ CÁLCULO REAL BASADO EN EL CALENDARIO */}
               </p>
             </div>
           </div>
@@ -534,7 +553,7 @@ export function ClientDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* ✅ Modal de Registro de Pago - ADAPTADO A TU API */}
+      {/* Modal de Registro de Pago */}
       <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>

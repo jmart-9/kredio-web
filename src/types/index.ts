@@ -2,8 +2,10 @@ export interface User {
   id: string;
   fullName: string;
   email: string;
-  role: string;
-  tenantId: string;
+  role: string;          
+  roleName: string;      
+  permissions: string[]; 
+  tenantId?: string;
 }
 
 export interface Client {
@@ -48,4 +50,6 @@ export interface LoginResponse {
   fullName: string;
   role: string;
   email: string;
+  roleName?: string;
+  permissions?: string[];
 }

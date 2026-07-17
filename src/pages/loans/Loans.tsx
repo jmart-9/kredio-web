@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Eye, Edit, Trash2, Search, CreditCard } from 'lucide-react';
+import { Plus, Eye, Search, CreditCard, TrendingUp, DollarSign } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -20,6 +20,7 @@ interface Loan {
   termMonths: number;
   status: string;
   currentBalance: number;
+  openingDate: string;
   createdAt: string;
 }
 
@@ -62,16 +63,14 @@ export function Loans() {
       ACTIVE: 'bg-green-100 text-green-800 hover:bg-green-100',
       PENDING: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
       DEFAULTED: 'bg-red-100 text-red-800 hover:bg-red-100',
-      COMPLETED: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
+      PAID: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
     };
-
     const labels: Record<string, string> = {
       ACTIVE: 'Activo',
       PENDING: 'Pendiente',
       DEFAULTED: 'Vencido',
-      COMPLETED: 'Completado',
+      PAID: 'Pagado',
     };
-
     return (
       <Badge className={variants[status] || 'bg-gray-100 text-gray-800'}>
         {labels[status] || status}
@@ -87,6 +86,12 @@ export function Loans() {
     );
   }
 
+  // Calcular métricas
+  const totalLoans = loans.length;
+  const activeLoans = loans.filter(l => l.status === 'ACTIVE').length;
+  const totalPortfolio = loans.reduce((sum, loan) => sum + loan.principalAmount, 0);
+  const totalBalance = loans.reduce((sum, loan) => sum + loan.currentBalance, 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -99,6 +104,54 @@ export function Loans() {
           <Plus className="w-4 h-4 mr-2" />
           Nuevo Préstamo
         </Button>
+      </div>
+
+      {/* Métricas Rápidas */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <CreditCard className="w-8 h-8 text-blue-600" />
+              <div>
+                <p className="text-sm text-gray-500">Total Préstamos</p>
+                <p className="text-2xl font-bold">{totalLoans}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="w-8 h-8 text-green-600" />
+              <div>
+                <p className="text-sm text-gray-500">Activos</p>
+                <p className="text-2xl font-bold">{activeLoans}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <DollarSign className="w-8 h-8 text-purple-600" />
+              <div>
+                <p className="text-sm text-gray-500">Cartera Total</p>
+                <p className="text-2xl font-bold">{formatCurrency(totalPortfolio)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <DollarSign className="w-8 h-8 text-orange-600" />
+              <div>
+                <p className="text-sm text-gray-500">Saldo Pendiente</p>
+                <p className="text-2xl font-bold">{formatCurrency(totalBalance)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filtros */}
@@ -123,7 +176,7 @@ export function Loans() {
                 <SelectItem value="ACTIVE">Activos</SelectItem>
                 <SelectItem value="PENDING">Pendientes</SelectItem>
                 <SelectItem value="DEFAULTED">Vencidos</SelectItem>
-                <SelectItem value="COMPLETED">Completados</SelectItem>
+                <SelectItem value="PAID">Pagados</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -166,7 +219,7 @@ export function Loans() {
                     <TableCell>{loan.interestRate}%</TableCell>
                     <TableCell>{loan.termMonths} meses</TableCell>
                     <TableCell>{getStatusBadge(loan.status)}</TableCell>
-                    <TableCell>{formatDate(loan.createdAt)}</TableCell>
+                    <TableCell>{formatDate(loan.openingDate || loan.createdAt)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
@@ -175,20 +228,6 @@ export function Loans() {
                           onClick={() => navigate(`/clients/${loan.clientId}`)}
                         >
                           <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/loans/${loan.id}/edit`)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </TableCell>
