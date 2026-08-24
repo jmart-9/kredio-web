@@ -48,11 +48,13 @@ export function Dashboard() {
 
   const loadStats = async () => {
     try {
+      // Intentar cargar estadísticas completas
       const response = await api.get('/dashboard/stats');
       setStats(response.data);
     } catch (error) {
-      console.error('Error loading dashboard:', error);
-      loadBasicStats();
+      console.error('Error loading dashboard stats:', error);
+      // Si falla, cargar estadísticas básicas
+      await loadBasicStats();
     } finally {
       setLoading(false);
     }
@@ -60,18 +62,16 @@ export function Dashboard() {
 
   const loadBasicStats = async () => {
     try {
-      const [loansRes, clientsRes] = await Promise.all([
-        api.get('/loans'),
-        api.get('/clients'),
-      ]);
-
+      const loansRes = await api.get('/loans');
+      const clientsRes = await api.get('/clients');
+    
       const loans = loansRes.data;
       const clients = clientsRes.data;
-
+    
       const activeLoans = loans.filter((l: any) => l.status === 'ACTIVE').length;
       const paidLoans = loans.filter((l: any) => l.status === 'PAID').length;
       const overdueLoans = loans.filter((l: any) => l.status === 'DEFAULTED').length;
-
+    
       setStats({
         totalClients: clients.length,
         totalLoans: loans.length,

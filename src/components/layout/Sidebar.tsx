@@ -1,23 +1,34 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Briefcase, Settings, CreditCard, FileText } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, Settings, CreditCard, FileText, Building2, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/useAuthStore';
 
-// ✅ AGREGAMOS 'Reportes' AL MENÚ
-const menuItems = [
+const tenantMenuItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, requiredPermission: 'REPORT:VIEW' },
   { to: '/clients', label: 'Clientes', icon: Users, requiredPermission: 'CLIENT:READ' },
   { to: '/loans', label: 'Préstamos', icon: CreditCard, requiredPermission: 'LOAN:READ' },
   { to: '/portfolios', label: 'Carteras', icon: Briefcase, requiredPermission: 'REPORT:VIEW' },
-  { to: '/reports', label: 'Reportes', icon: FileText, requiredPermission: 'REPORT:VIEW' }, // ✅ NUEVA OPCIÓN
+  { to: '/reports', label: 'Reportes', icon: FileText, requiredPermission: 'REPORT:VIEW' },
   { to: '/users', label: 'Usuarios', icon: Settings, requiredPermission: 'USER:READ' },
+];
+
+const adminGlobalMenuItems = [
+  { to: '/admin', label: 'Dashboard Global', icon: Shield, requiredPermission: 'GLOBAL:MANAGE' },
+  { to: '/admin/tenants', label: 'Tenants', icon: Building2, requiredPermission: 'GLOBAL:MANAGE' },
+  { to: '/admin/plans', label: 'Planes SaaS', icon: CreditCard, requiredPermission: 'GLOBAL:MANAGE' },
 ];
 
 export function Sidebar() {
   const { user, hasPermission } = useAuthStore();
+  
+  // Verificar si es Admin Global
+  const isAdminGlobal = user?.role === 'ADMIN_GLOBAL' || hasPermission('GLOBAL:MANAGE');
+  
+  // Seleccionar el menú correspondiente
+  const menuItems = isAdminGlobal ? adminGlobalMenuItems : tenantMenuItems;
 
-  // ✅ FILTRAR MENÚ: Solo mostrar si el usuario tiene el permiso requerido
-  const visibleMenuItems = menuItems.filter(item => 
+  // Filtrar menú por permisos
+  const visibleMenuItems = menuItems.filter(item =>
     !item.requiredPermission || hasPermission(item.requiredPermission)
   );
 
@@ -31,6 +42,11 @@ export function Sidebar() {
           <div>
             <h1 className="text-lg font-bold text-gray-900 truncate">{user?.fullName || 'Kredio'}</h1>
             <p className="text-xs text-gray-500">{user?.roleName || 'Rol'}</p>
+            {isAdminGlobal && (
+              <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                Admin Global
+              </span>
+            )}
           </div>
         </div>
       </div>

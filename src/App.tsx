@@ -13,6 +13,11 @@ import { LoanDetail } from '@/pages/loans/LoanDetail';
 import { Users } from '@/pages/users/Users';
 import { Reports } from '@/pages/reports/Reports';
 
+// ✅ NUEVAS IMPORTACIONES: Admin Global
+import { GlobalDashboard } from '@/pages/admin/GlobalDashboard';
+import { TenantsList } from '@/pages/admin/TenantsList';
+import { PlansList } from '@/pages/admin/PlansList';
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore();
   return token ? <>{children}</> : <Navigate to="/login" />;
@@ -22,7 +27,10 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Ruta pública */}
         <Route path="/login" element={<Login />} />
+
+        {/* Rutas protegidas */}
         <Route
           path="/"
           element={
@@ -31,19 +39,30 @@ function App() {
             </ProtectedRoute>
           }
         >
+          {/* Dashboard del Tenant (por defecto) */}
           <Route index element={<Dashboard />} />
+
+          {/* Clientes */}
           <Route path="clients" element={<Clients />} />
           <Route path="clients/:id" element={<ClientDetail />} />
-          <Route path="/portfolios" element={<Portfolios />} />
-          <Route path="/portfolios/:id" element={<PortfolioDetail />} />
-          <Route path="/loans/new" element={<LoanForm />} />
-          <Route path="/loans" element={<Loans />} />
-          <Route path="portfolio" element={<div className="text-2xl font-bold">Cartera - Próximamente</div>} />
-          <Route path="/loans" element={<Loans />} />
-          <Route path="/loans/new" element={<LoanForm />} />
-          <Route path="/loans/:id" element={<LoanDetail />} />
-          <Route path="/users" element={<Users />} />
-          <Route path="/reports" element={<Reports />} />
+
+          {/* Préstamos */}
+          <Route path="loans" element={<Loans />} />
+          <Route path="loans/new" element={<LoanForm />} />
+          <Route path="loans/:id" element={<LoanDetail />} />
+
+          {/* Carteras */}
+          <Route path="portfolios" element={<Portfolios />} />
+          <Route path="portfolios/:id" element={<PortfolioDetail />} />
+
+          {/* Usuarios y Reportes */}
+          <Route path="users" element={<Users />} />
+          <Route path="reports" element={<Reports />} />
+
+          {/* ✅ NUEVAS RUTAS: Admin Global */}
+          <Route path="admin" element={<GlobalDashboard />} />
+          <Route path="admin/tenants" element={<TenantsList />} />
+          <Route path="admin/plans" element={<PlansList />} />
         </Route>
       </Routes>
     </BrowserRouter>
