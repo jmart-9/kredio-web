@@ -6,23 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Eye, Edit, Trash2, CreditCard, DollarSign, AlertCircle, Search, TrendingUp } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/Textarea';
+import { Plus, Eye, CreditCard, DollarSign, AlertCircle, Search, TrendingUp, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
-
-interface Loan {
-  id: string;
-  clientId: string;
-  clientName: string;
-  principalAmount: number;
-  interestRate: number;
-  termMonths: number;
-  status: string;
-  currentBalance: number;
-  openingDate: string;
-  createdAt: string;
-}
+import type { Loan } from '@/types';
 
 export function Loans() {
   const navigate = useNavigate();
@@ -30,10 +20,18 @@ export function Loans() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [approvalFilter, setApprovalFilter] = useState('all');
+  
+  // Estados para modales de aprobación/rechazo
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     loadLoans();
-  }, [statusFilter]);
+  }, [statusFilter, approvalFilter]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -47,7 +45,7 @@ export function Loans() {
       const params: any = {};
       if (statusFilter !== 'all') params.status = statusFilter;
       if (search) params.search = search;
-
+      
       const response = await api.get('/loans', { params });
       setLoans(response.data);
     } catch (error) {
@@ -58,6 +56,45 @@ export function Loans() {
     }
   };
 
+  // ✅ NUEVO: Aprobar préstamo
+  const handleApprove = async () => {
+    if (!selectedLoan) return;
+    setIsProcessing(true);
+    try {
+      await api.post(`/loans/${selectedLoan.id}/approve`);
+      toast.success('✅ Préstamo aprobado y activado correctamente');
+      setIsApproveModalOpen(false);
+      setSelectedLoan(null);
+      loadLoans();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error al aprobar el préstamo');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // ✅ NUEVO: Rechazar préstamo
+  const handleReject = async () => {
+    if (!selectedLoan) return;
+    if (!rejectReason.trim()) {
+      toast.error('Debes ingresar una razón para el rechazo');
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      await api.post(`/loans/${selectedLoan.id}/reject`, { reason: rejectReason });
+      toast.success('❌ Préstamo rechazado correctamente');
+      setIsRejectModalOpen(false);
+      setSelectedLoan(null);
+      setRejectReason('');
+      loadLoans();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error al rechazar el préstamo');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
       ACTIVE: 'bg-green-100 text-green-800 hover:bg-green-100',
@@ -65,20 +102,61 @@ export function Loans() {
       DEFAULTED: 'bg-red-100 text-red-800 hover:bg-red-100',
       PAID: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
     };
-
     const labels: Record<string, string> = {
       ACTIVE: 'Activo',
       PENDING: 'Pendiente',
       DEFAULTED: 'Vencido',
       PAID: 'Pagado',
     };
+    return <Badge className={variants[status] || 'bg-gray-100 text-gray-800'}>{labels[status] || status}</Badge>;
+  };
 
+  // ✅ NUEVO: Badge para approvalStatus
+  const getApprovalBadge = (loan: Loan) => {
+    // Si el préstamo no está en estado PENDING, no mostrar badge de aprobación
+    if (loan.status !== 'PENDING') return null;
+    
+    const approvalStatus = loan.approvalStatus || 'PENDING';
+    
+    if (approvalStatus === 'APPROVED') {
+      return (
+        <Badge className="bg-green-100 text-green-800 flex items-center gap-1">
+          <CheckCircle className="w-3 h-3" /> Aprobado
+        </Badge>
+      );
+    }
+    if (approvalStatus === 'REJECTED') {
+      return (
+        <Badge className="bg-red-100 text-red-800 flex items-center gap-1">
+          <XCircle className="w-3 h-3" /> Rechazado
+        </Badge>
+      );
+    }
     return (
-      <Badge className={variants[status] || 'bg-gray-100 text-gray-800'}>
-        {labels[status] || status}
+      <Badge className="bg-amber-100 text-amber-800 flex items-center gap-1">
+        <Clock className="w-3 h-3" /> Por Aprobar
       </Badge>
     );
   };
+
+  // ✅ NUEVO: Filtrar préstamos pendientes de aprobación
+  const filteredLoans = loans.filter((loan) => {
+    if (approvalFilter === 'pending-approval') {
+      return loan.status === 'PENDING' && loan.approvalStatus === 'PENDING';
+    }
+    if (approvalFilter === 'approved') {
+      return loan.approvalStatus === 'APPROVED';
+    }
+    if (approvalFilter === 'rejected') {
+      return loan.approvalStatus === 'REJECTED';
+    }
+    return true;
+  });
+
+  // ✅ NUEVO: Contador de préstamos pendientes
+  const pendingApprovalCount = loans.filter(
+    l => l.status === 'PENDING' && l.approvalStatus === 'PENDING'
+  ).length;
 
   if (loading) {
     return (
@@ -89,11 +167,10 @@ export function Loans() {
   }
 
   // Calcular métricas
-  const totalLoans = loans.length;
-  const activeLoans = loans.filter(l => l.status === 'ACTIVE').length;
-  const totalPortfolio = loans.reduce((sum, loan) => sum + loan.principalAmount, 0);
-  const totalBalance = loans.reduce((sum, loan) => sum + loan.currentBalance, 0);
-  const overdueLoans = loans.filter(l => l.status === 'DEFAULTED').length;
+  const totalLoans = filteredLoans.length;
+  const activeLoans = filteredLoans.filter(l => l.status === 'ACTIVE').length;
+  const totalPortfolio = filteredLoans.reduce((sum, loan) => sum + loan.principalAmount, 0);
+  const totalBalance = filteredLoans.reduce((sum, loan) => sum + loan.currentBalance, 0);
 
   return (
     <div className="space-y-6">
@@ -108,6 +185,32 @@ export function Loans() {
           Nuevo Préstamo
         </Button>
       </div>
+
+      {/* ✅ NUEVO: Alerta de préstamos pendientes de aprobación */}
+      {pendingApprovalCount > 0 && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-6 h-6 text-amber-600" />
+              <div>
+                <p className="font-semibold text-amber-900">
+                  {pendingApprovalCount} préstamo(s) pendiente(s) de aprobación
+                </p>
+                <p className="text-sm text-amber-700">
+                  Revisa y aprueba o rechaza los préstamos pendientes
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              className="border-amber-300 bg-white hover:bg-amber-50"
+              onClick={() => setApprovalFilter('pending-approval')}
+            >
+              Ver Pendientes
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Métricas Rápidas */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -160,8 +263,8 @@ export function Loans() {
       {/* Filtros */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 placeholder="Buscar por cliente..."
@@ -174,12 +277,24 @@ export function Loans() {
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
-              <SelectContent position="popper" className="z-50 bg-white border border-gray-200 shadow-lg">
-                <SelectItem value="all">Todos</SelectItem>
+              <SelectContent className="z-50 bg-white">
+                <SelectItem value="all">Todos los estados</SelectItem>
                 <SelectItem value="ACTIVE">Activos</SelectItem>
                 <SelectItem value="PENDING">Pendientes</SelectItem>
                 <SelectItem value="DEFAULTED">Vencidos</SelectItem>
                 <SelectItem value="PAID">Pagados</SelectItem>
+              </SelectContent>
+            </Select>
+            {/* ✅ NUEVO: Filtro de aprobación */}
+            <Select value={approvalFilter} onValueChange={setApprovalFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Aprobación" />
+              </SelectTrigger>
+              <SelectContent className="z-50 bg-white">
+                <SelectItem value="all">Todas las aprobaciones</SelectItem>
+                <SelectItem value="pending-approval">⏳ Por Aprobar</SelectItem>
+                <SelectItem value="approved">✅ Aprobados</SelectItem>
+                <SelectItem value="rejected">❌ Rechazados</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -195,7 +310,7 @@ export function Loans() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {loans.length === 0 ? (
+          {filteredLoans.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               No hay préstamos registrados
             </div>
@@ -209,15 +324,19 @@ export function Loans() {
                   <TableHead>Tasa</TableHead>
                   <TableHead>Plazo</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Aprobación</TableHead>
                   <TableHead>Fecha</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loans.map((loan) => (
-                  <TableRow 
+                {filteredLoans.map((loan) => (
+                  <TableRow
                     key={loan.id}
-                    className={loan.status === 'DEFAULTED' ? 'bg-red-50 hover:bg-red-100' : ''}
+                    className={
+                      loan.status === 'DEFAULTED' ? 'bg-red-50 hover:bg-red-100' :
+                      loan.status === 'PENDING' && loan.approvalStatus === 'PENDING' ? 'bg-amber-50 hover:bg-amber-100' : ''
+                    }
                   >
                     <TableCell className="font-medium">{loan.clientName}</TableCell>
                     <TableCell>{formatCurrency(loan.principalAmount)}</TableCell>
@@ -225,29 +344,45 @@ export function Loans() {
                     <TableCell>{loan.interestRate}%</TableCell>
                     <TableCell>{loan.termMonths} meses</TableCell>
                     <TableCell>{getStatusBadge(loan.status)}</TableCell>
+                    <TableCell>{getApprovalBadge(loan)}</TableCell>
                     <TableCell>{formatDate(loan.createdAt)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        {/* ✅ NUEVO: Botones de Aprobar/Rechazar para préstamos pendientes */}
+                        {loan.status === 'PENDING' && loan.approvalStatus === 'PENDING' && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              onClick={() => {
+                                setSelectedLoan(loan);
+                                setIsApproveModalOpen(true);
+                              }}
+                              title="Aprobar préstamo"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => {
+                                setSelectedLoan(loan);
+                                setIsRejectModalOpen(true);
+                              }}
+                              title="Rechazar préstamo"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => navigate(`/clients/${loan.clientId}`)}
+                          onClick={() => navigate(`/loans/${loan.id}`)}
                         >
                           <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/loans/${loan.id}/edit`)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -260,8 +395,132 @@ export function Loans() {
       </Card>
 
       <div className="text-sm text-gray-500">
-        Mostrando {loans.length} préstamo(s){overdueLoans > 0 && ` · ${overdueLoans} en mora`}
+        Mostrando {filteredLoans.length} préstamo(s)
+        {pendingApprovalCount > 0 && ` · ${pendingApprovalCount} pendiente(s) de aprobación`}
       </div>
+
+      {/* ✅ NUEVO: Modal de Confirmación de Aprobación */}
+      <Dialog open={isApproveModalOpen} onOpenChange={setIsApproveModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-700">
+              <CheckCircle className="w-5 h-5" />
+              Aprobar Préstamo
+            </DialogTitle>
+            <DialogDescription>
+              Al aprobar este préstamo, se activará y el cliente podrá comenzar a pagar.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedLoan && (
+            <div className="space-y-4 py-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Cliente:</span>
+                  <span className="font-medium">{selectedLoan.clientName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Monto:</span>
+                  <span className="font-bold text-blue-700">{formatCurrency(selectedLoan.principalAmount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Tasa:</span>
+                  <span className="font-medium">{selectedLoan.interestRate}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Plazo:</span>
+                  <span className="font-medium">{selectedLoan.termMonths} meses</span>
+                </div>
+              </div>
+              
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <p className="text-sm text-green-800">
+                  <strong>⚠️ Importante:</strong> Esta acción activará el préstamo inmediatamente.
+                  Asegúrate de haber revisado la documentación del cliente.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsApproveModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleApprove} 
+              disabled={isProcessing}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isProcessing ? 'Aprobando...' : '✅ Aprobar y Activar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ✅ NUEVO: Modal de Rechazo con Razón */}
+      <Dialog open={isRejectModalOpen} onOpenChange={setIsRejectModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <XCircle className="w-5 h-5" />
+              Rechazar Préstamo
+            </DialogTitle>
+            <DialogDescription>
+              Indica la razón del rechazo. Esta información quedará registrada.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedLoan && (
+            <div className="space-y-4 py-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Cliente:</span>
+                  <span className="font-medium">{selectedLoan.clientName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Monto:</span>
+                  <span className="font-bold">{formatCurrency(selectedLoan.principalAmount)}</span>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Razón del rechazo *
+                </label>
+                <Textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Ej: Documentación incompleta, no cumple con requisitos de scoring, etc."
+                  rows={4}
+                  className="resize-none"
+                />
+              </div>
+              
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-800">
+                  <strong>⚠️ Importante:</strong> El préstamo quedará en estado rechazado y no podrá ser activado.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsRejectModalOpen(false);
+              setRejectReason('');
+            }}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleReject} 
+              disabled={isProcessing || !rejectReason.trim()}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isProcessing ? 'Rechazando...' : '❌ Rechazar Préstamo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -12,6 +12,8 @@ import { Loans } from '@/pages/loans/Loans';
 import { LoanDetail } from '@/pages/loans/LoanDetail';
 import { Users } from '@/pages/users/Users';
 import { Reports } from '@/pages/reports/Reports';
+import { Payments } from '@/pages/payments/Payments';
+
 
 // ✅ NUEVAS IMPORTACIONES: Admin Global
 import { GlobalDashboard } from '@/pages/admin/GlobalDashboard';
@@ -54,6 +56,8 @@ function App() {
           {/* Carteras */}
           <Route path="portfolios" element={<Portfolios />} />
           <Route path="portfolios/:id" element={<PortfolioDetail />} />
+
+          <Route path="payments" element={<Payments />} />
 
           {/* Usuarios y Reportes */}
           <Route path="users" element={<Users />} />

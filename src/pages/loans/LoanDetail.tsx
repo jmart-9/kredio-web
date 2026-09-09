@@ -7,8 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/Textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, DollarSign, Calendar, User, TrendingUp, AlertCircle } from 'lucide-react';
+import { ArrowLeft, DollarSign, Calendar, User, TrendingUp, AlertCircle, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useAuthStore';
 import api from '@/lib/api';
@@ -25,6 +26,10 @@ interface Loan {
   openingDate: string;
   amortizationMethod: string;
   paymentFrequency: string;
+  // ✅ NUEVOS CAMPOS para Flujo de Aprobación
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvedBy?: string;
+  approvedAt?: string;
 }
 
 interface LoanSchedule {
@@ -57,6 +62,7 @@ export function LoanDetail() {
   const [schedules, setSchedules] = useState<LoanSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // Estados para modal de pago
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<LoanSchedule | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -64,6 +70,12 @@ export function LoanDetail() {
     amountPaid: '',
     method: 'CASH',
   });
+
+  // ✅ NUEVOS Estados para aprobación/rechazo
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     loadLoanData();
@@ -131,6 +143,43 @@ export function LoanDetail() {
     }
   };
 
+  // ✅ NUEVO: Aprobar préstamo
+  const handleApprove = async () => {
+    if (!loan) return;
+    setIsProcessing(true);
+    try {
+      await api.post(`/loans/${loan.id}/approve`);
+      toast.success('✅ Préstamo aprobado y activado correctamente');
+      setIsApproveModalOpen(false);
+      loadLoanData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error al aprobar el préstamo');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // ✅ NUEVO: Rechazar préstamo
+  const handleReject = async () => {
+    if (!loan) return;
+    if (!rejectReason.trim()) {
+      toast.error('Debes ingresar una razón para el rechazo');
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      await api.post(`/loans/${loan.id}/reject`, { reason: rejectReason });
+      toast.success('❌ Préstamo rechazado correctamente');
+      setIsRejectModalOpen(false);
+      setRejectReason('');
+      loadLoanData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error al rechazar el préstamo');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
       PAID: 'bg-green-100 text-green-800',
@@ -180,7 +229,6 @@ export function LoanDetail() {
     .reduce((sum, s) => sum + s.expectedAmount, 0);
 
   const totalInterest = schedules.reduce((sum, s) => sum + s.expectedInterest, 0);
-
   const overdueSchedules = schedules.filter((s) => s.status === 'OVERDUE');
 
   return (
@@ -207,6 +255,76 @@ export function LoanDetail() {
               </p>
               <p className="text-sm text-red-700">
                 Total en mora: {formatCurrency(overdueSchedules.reduce((sum, s) => sum + s.expectedAmount, 0))}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ✅ NUEVO: Panel de Aprobación (si está pendiente) */}
+      {loan.status === 'PENDING' && loan.approvalStatus === 'PENDING' && (
+        <Card className="border-amber-300 bg-amber-50">
+          <CardContent className="py-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                  <Clock className="w-6 h-6 text-amber-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-amber-900 text-lg">
+                    Préstamo Pendiente de Aprobación
+                  </p>
+                  <p className="text-sm text-amber-700">
+                    Este préstamo debe ser aprobado antes de activarse
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setIsApproveModalOpen(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Aprobar
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsRejectModalOpen(true)}
+                  className="border-red-300 text-red-700 hover:bg-red-50"
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Rechazar
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ✅ NUEVO: Info si ya fue aprobado */}
+      {loan.approvalStatus === 'APPROVED' && loan.approvedAt && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="flex items-center gap-3 py-4">
+            <CheckCircle className="w-6 h-6 text-green-600" />
+            <div>
+              <p className="font-semibold text-green-900">Préstamo Aprobado</p>
+              <p className="text-sm text-green-700">
+                Aprobado el {formatDate(loan.approvedAt)}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ✅ NUEVO: Info si fue rechazado */}
+      {loan.approvalStatus === 'REJECTED' && loan.approvedAt && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="flex items-center gap-3 py-4">
+            <XCircle className="w-6 h-6 text-red-600" />
+            <div>
+              <p className="font-semibold text-red-900">Préstamo Rechazado</p>
+              <p className="text-sm text-red-700">
+                Rechazado el {formatDate(loan.approvedAt)}
               </p>
             </div>
           </CardContent>
@@ -445,6 +563,83 @@ export function LoanDetail() {
             </Button>
             <Button onClick={handlePaymentSubmit} disabled={isSaving} className="bg-green-600 hover:bg-green-700">
               {isSaving ? 'Procesando...' : 'Confirmar Pago'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ✅ NUEVO: Modal de Aprobación */}
+      <Dialog open={isApproveModalOpen} onOpenChange={setIsApproveModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-700">
+              <CheckCircle className="w-5 h-5" />
+              Aprobar Préstamo
+            </DialogTitle>
+            <DialogDescription>
+              Al aprobar este préstamo, se activará y el cliente podrá comenzar a pagar.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-2">
+            <p className="text-sm text-green-800">
+              <strong>⚠️ Importante:</strong> Esta acción activará el préstamo inmediatamente.
+            </p>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsApproveModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleApprove} 
+              disabled={isProcessing}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isProcessing ? 'Aprobando...' : '✅ Aprobar y Activar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ✅ NUEVO: Modal de Rechazo */}
+      <Dialog open={isRejectModalOpen} onOpenChange={setIsRejectModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <XCircle className="w-5 h-5" />
+              Rechazar Préstamo
+            </DialogTitle>
+            <DialogDescription>
+              Indica la razón del rechazo. Esta información quedará registrada.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-2 py-4">
+            <Label htmlFor="rejectReason">Razón del rechazo *</Label>
+            <Textarea
+              id="rejectReason"
+              value={rejectReason}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setRejectReason(e.target.value)}
+              placeholder="Ej: Documentación incompleta, no cumple con requisitos de scoring, etc."
+              rows={4}
+              className="resize-none"
+            />
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsRejectModalOpen(false);
+              setRejectReason('');
+            }}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleReject} 
+              disabled={isProcessing || !rejectReason.trim()}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isProcessing ? 'Rechazando...' : '❌ Rechazar'}
             </Button>
           </DialogFooter>
         </DialogContent>

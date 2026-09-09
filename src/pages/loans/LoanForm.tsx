@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ArrowLeft, Calculator, Check, ChevronsUpDown, Search } from 'lucide-react';
+import { ArrowLeft, Calculator, Check, ChevronsUpDown, Search, AlertCircle } from 'lucide-react'; // ✅ Agregado AlertCircle
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -51,7 +51,6 @@ export function LoanForm() {
       return;
     }
 
-    // 1. Calcular tasa del período (Igual que el backend)
     const monthlyRate = annualRate / 12;
     let periodRate: number;
     switch (formData.paymentFrequency) {
@@ -96,7 +95,6 @@ export function LoanForm() {
         schedule.push({ installmentNumber: i, dueDate: dueDate.toISOString().split('T')[0], expectedAmount: paymentAmount, expectedPrincipal: principalPayment, expectedInterest: fixedInterest });
       }
     } else {
-      // FRENCH
       let payment: number;
       if (periodRate === 0) {
         payment = principal / numberOfPayments;
@@ -149,8 +147,9 @@ export function LoanForm() {
         paymentFrequency: formData.paymentFrequency, amortizationMethod: formData.amortizationMethod,
         term: parseInt(formData.numberOfPayments), openingDate: formData.openingDate, firstPaymentDate: formData.firstPaymentDate,
       });
-      toast.success('Préstamo creado correctamente');
-      navigate('/clients');
+      // ✅ Mensaje claro sobre el nuevo flujo
+      toast.success('✅ Préstamo creado. Quedó en estado PENDIENTE de aprobación.');
+      navigate('/loans');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Error al crear el préstamo');
     } finally { setSubmitting(false); }
@@ -229,6 +228,22 @@ export function LoanForm() {
             <div className="space-y-2"><Label>Fecha de Apertura *</Label><Input type="date" value={formData.openingDate} onChange={(e) => setFormData({ ...formData, openingDate: e.target.value })} /><p className="text-xs text-gray-500">Fecha en que se desembolsa el préstamo</p></div>
             <div className="space-y-2"><Label>Fecha del Primer Pago *</Label><Input type="date" value={formData.firstPaymentDate} onChange={(e) => setFormData({ ...formData, firstPaymentDate: e.target.value })} /></div>
           </div>
+          
+          {/* ✅ NUEVO: Alerta visual informativa antes de crear */}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-amber-900">
+                  Los préstamos creados quedan en estado PENDIENTE
+                </p>
+                <p className="text-xs text-amber-700 mt-1">
+                  Un administrador deberá revisar y aprobar este préstamo antes de que se active y el cliente pueda comenzar a pagar.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="flex gap-3 mt-6">
             <Button variant="outline" onClick={calculateSchedule}><Calculator className="w-4 h-4 mr-2" /> Calcular Cuotas</Button>
             <Button onClick={handleSubmit} disabled={submitting}>{submitting ? 'Creando...' : 'Crear Préstamo'}</Button>

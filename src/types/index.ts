@@ -19,15 +19,21 @@ export interface Client {
   createdAt: string;
 }
 
+
 export interface Loan {
   id: string;
   clientId: string;
+  clientName?: string;
   principalAmount: number;
   interestRate: number;
   termMonths: number;
-  status: string;
+  status: 'PENDING' | 'ACTIVE' | 'PAID' | 'DEFAULTED';
   currentBalance: number;
   createdAt: string;
+  openingDate?: string;
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvedBy?: string;
+  approvedAt?: string;
 }
 
 export interface Payment {
@@ -142,4 +148,45 @@ export interface PlanCreateRequest {
   maxCustomInterestRates: number;
   features?: string;
   supportLevel?: string;
+}
+
+// ==========================================
+// TIPOS PARA GESTIÓN DE PAGOS
+// ==========================================
+
+export interface Payment {
+  id: string;
+  loanId: string;
+  collectorId: string;
+  amountPaid: number;
+  previousBalance: number;
+  newBalance: number;
+  paymentDate: string;
+  method: string;
+  isPrinted: boolean;
+  syncedFromOffline: boolean;
+  isVoided?: boolean;
+  voidedAt?: string;
+}
+
+export interface LoanSchedule {
+  id: string;
+  loanId: string;
+  installmentNumber: number;
+  dueDate: string;
+  expectedAmount: number;
+  expectedPrincipal: number;
+  expectedInterest: number;
+  paidAmount?: number;
+  paidDate?: string;
+  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'PARTIAL';
+}
+
+export interface PaymentRequest {
+  loanId: string;
+  collectorId: string;
+  amountPaid: number;
+  method: string;
+  isPrinted?: boolean;
+  syncedFromOffline?: boolean;
 }

@@ -1,5 +1,8 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Briefcase, Settings, CreditCard, FileText, Building2, Shield } from 'lucide-react';
+import { 
+  LayoutDashboard, Users, Briefcase, Settings, CreditCard, 
+  FileText, Building2, Shield, DollarSign, Clock 
+} from 'lucide-react'; // ✅ Importaciones consolidadas y limpias
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/useAuthStore';
 
@@ -7,9 +10,12 @@ const tenantMenuItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, requiredPermission: 'REPORT:VIEW' },
   { to: '/clients', label: 'Clientes', icon: Users, requiredPermission: 'CLIENT:READ' },
   { to: '/loans', label: 'Préstamos', icon: CreditCard, requiredPermission: 'LOAN:READ' },
+  // ✅ NUEVO: Acceso rápido exclusivo para usuarios con permiso de aprobación
+  { to: '/loans', label: 'Por Aprobar', icon: Clock, requiredPermission: 'LOAN:APPROVE' },
   { to: '/portfolios', label: 'Carteras', icon: Briefcase, requiredPermission: 'REPORT:VIEW' },
   { to: '/reports', label: 'Reportes', icon: FileText, requiredPermission: 'REPORT:VIEW' },
   { to: '/users', label: 'Usuarios', icon: Settings, requiredPermission: 'USER:READ' },
+  { to: '/payments', label: 'Pagos', icon: DollarSign, requiredPermission: 'LOAN:READ' },
 ];
 
 const adminGlobalMenuItems = [
