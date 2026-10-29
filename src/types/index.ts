@@ -30,6 +30,12 @@ export interface Loan {
   status: 'PENDING' | 'ACTIVE' | 'PAID' | 'DEFAULTED';
   currentBalance: number;
   createdAt: string;
+  amortizationMethod: string;
+  paymentFrequency: string;
+  dayCountConvention?: string;
+  earlyRepaymentPolicy?: string;
+  graceDays?: number;
+  adjustForBusinessDays?: boolean;
   openingDate?: string;
   approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
   approvedBy?: string;

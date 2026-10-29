@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { toast } from 'sonner';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import type { LoginRequest, LoginResponse, User } from '@/types';
@@ -35,22 +36,31 @@ export function Login() {
     setError('');
 
     try {
-      const response = await api.post<LoginResponse>('/auth/login', data);
+      console.log('🔐 Intentando login con:', data.email);
       
-      // ✅ Agregamos roleName y permissions con valores de respaldo (fallback)
+      const response = await api.post<LoginResponse>('/auth/login', data);
+      console.log('✅ Respuesta del backend:', response.data);
+      
       const userData: User = {
         id: response.data.userId,
         fullName: response.data.fullName,
         email: response.data.email,
         role: response.data.role,
-        roleName: response.data.roleName || response.data.role, 
+        roleName: response.data.roleName || response.data.role,
         tenantId: response.data.tenantId,
-        permissions: response.data.permissions || [], 
+        permissions: response.data.permissions || [],
       };
       
+      console.log(' Datos de usuario:', userData);
+      
       login(userData, response.data.token);
-      navigate('/');
+      
+      toast.success('¡Bienvenido, ' + userData.fullName + '!');
+      
+      // ✅ REDIRIGIR AL DASHBOARD (no a /)
+      navigate('/dashboard');
     } catch (err: any) {
+      console.error('❌ Error en login:', err);
       setError(err.response?.data?.message || 'Error al iniciar sesión');
     } finally {
       setLoading(false);
@@ -74,7 +84,7 @@ export function Login() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="admin@kredio.com" {...field} />
+                      <Input placeholder="admin@oroplata.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -94,7 +104,7 @@ export function Login() {
                 )}
               />
               {error && (
-                <div className="text-red-500 text-sm text-center">{error}</div>
+                <div className="text-red-500 text-sm text-center bg-red-50 p-2 rounded">{error}</div>
               )}
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}

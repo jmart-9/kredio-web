@@ -14,7 +14,6 @@ import { Users } from '@/pages/users/Users';
 import { Reports } from '@/pages/reports/Reports';
 import { Payments } from '@/pages/payments/Payments';
 
-
 // ✅ NUEVAS IMPORTACIONES: Admin Global
 import { GlobalDashboard } from '@/pages/admin/GlobalDashboard';
 import { TenantsList } from '@/pages/admin/TenantsList';
@@ -22,7 +21,7 @@ import { PlansList } from '@/pages/admin/PlansList';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore();
-  return token ? <>{children}</> : <Navigate to="/login" />;
+  return token ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 function App() {
@@ -32,7 +31,7 @@ function App() {
         {/* Ruta pública */}
         <Route path="/login" element={<Login />} />
 
-        {/* Rutas protegidas */}
+        {/* Rutas protegidas con Layout */}
         <Route
           path="/"
           element={
@@ -41,8 +40,9 @@ function App() {
             </ProtectedRoute>
           }
         >
-          {/* Dashboard del Tenant (por defecto) */}
+          {/* ✅ Dashboard (tanto en '/' como en '/dashboard' para compatibilidad) */}
           <Route index element={<Dashboard />} />
+          <Route path="dashboard" element={<Dashboard />} />
 
           {/* Clientes */}
           <Route path="clients" element={<Clients />} />
@@ -57,6 +57,7 @@ function App() {
           <Route path="portfolios" element={<Portfolios />} />
           <Route path="portfolios/:id" element={<PortfolioDetail />} />
 
+          {/* Pagos */}
           <Route path="payments" element={<Payments />} />
 
           {/* Usuarios y Reportes */}
@@ -68,6 +69,9 @@ function App() {
           <Route path="admin/tenants" element={<TenantsList />} />
           <Route path="admin/plans" element={<PlansList />} />
         </Route>
+
+        {/* Ruta 404 para cualquier otra URL no definida */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/Textarea';
-import { Plus, Eye, CreditCard, DollarSign, AlertCircle, Search, TrendingUp, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Plus, Eye, CreditCard, DollarSign, AlertCircle, Search, TrendingUp, CheckCircle, XCircle, Clock, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -21,22 +21,17 @@ export function Loans() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [approvalFilter, setApprovalFilter] = useState('all');
-  
-  // Estados para modales de aprobación/rechazo
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+  const [loanToDelete, setLoanToDelete] = useState<Loan | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
+  useEffect(() => { loadLoans(); }, [statusFilter, approvalFilter]);
   useEffect(() => {
-    loadLoans();
-  }, [statusFilter, approvalFilter]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadLoans();
-    }, 300);
+    const timer = setTimeout(() => { loadLoans(); }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
@@ -45,7 +40,6 @@ export function Loans() {
       const params: any = {};
       if (statusFilter !== 'all') params.status = statusFilter;
       if (search) params.search = search;
-      
       const response = await api.get('/loans', { params });
       setLoans(response.data);
     } catch (error) {
@@ -56,7 +50,6 @@ export function Loans() {
     }
   };
 
-  // ✅ NUEVO: Aprobar préstamo
   const handleApprove = async () => {
     if (!selectedLoan) return;
     setIsProcessing(true);
@@ -73,7 +66,6 @@ export function Loans() {
     }
   };
 
-  // ✅ NUEVO: Rechazar préstamo
   const handleReject = async () => {
     if (!selectedLoan) return;
     if (!rejectReason.trim()) {
@@ -95,29 +87,39 @@ export function Loans() {
     }
   };
 
+  const handleDeleteLoan = async () => {
+    if (!loanToDelete) return;
+    setIsProcessing(true);
+    try {
+      await api.delete(`/loans/${loanToDelete.id}`);
+      toast.success('🗑️ Préstamo y toda su información relacionados eliminados correctamente');
+      setIsDeleteModalOpen(false);
+      setLoanToDelete(null);
+      loadLoans();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error al eliminar el préstamo');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
       ACTIVE: 'bg-green-100 text-green-800 hover:bg-green-100',
       PENDING: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
       DEFAULTED: 'bg-red-100 text-red-800 hover:bg-red-100',
       PAID: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
+      REJECTED: 'bg-gray-100 text-gray-800 hover:bg-gray-100',
     };
     const labels: Record<string, string> = {
-      ACTIVE: 'Activo',
-      PENDING: 'Pendiente',
-      DEFAULTED: 'Vencido',
-      PAID: 'Pagado',
+      ACTIVE: 'Activo', PENDING: 'Pendiente', DEFAULTED: 'Vencido', PAID: 'Pagado', REJECTED: 'Rechazado',
     };
     return <Badge className={variants[status] || 'bg-gray-100 text-gray-800'}>{labels[status] || status}</Badge>;
   };
 
-  // ✅ NUEVO: Badge para approvalStatus
   const getApprovalBadge = (loan: Loan) => {
-    // Si el préstamo no está en estado PENDING, no mostrar badge de aprobación
     if (loan.status !== 'PENDING') return null;
-    
     const approvalStatus = loan.approvalStatus || 'PENDING';
-    
     if (approvalStatus === 'APPROVED') {
       return (
         <Badge className="bg-green-100 text-green-800 flex items-center gap-1">
@@ -139,7 +141,18 @@ export function Loans() {
     );
   };
 
-  // ✅ NUEVO: Filtrar préstamos pendientes de aprobación
+  const getAmortizationBadge = (method: string) => {
+    const variants: Record<string, string> = {
+      FRENCH: 'bg-blue-100 text-blue-800',
+      FLAT: 'bg-purple-100 text-purple-800',
+      GERMAN: 'bg-orange-100 text-orange-800',
+    };
+    const labels: Record<string, string> = {
+      FRENCH: 'Francés', FLAT: 'Flat', GERMAN: 'Alemán',
+    };
+    return <Badge className={variants[method] || 'bg-gray-100'}>{labels[method] || method}</Badge>;
+  };
+
   const filteredLoans = loans.filter((loan) => {
     if (approvalFilter === 'pending-approval') {
       return loan.status === 'PENDING' && loan.approvalStatus === 'PENDING';
@@ -153,7 +166,6 @@ export function Loans() {
     return true;
   });
 
-  // ✅ NUEVO: Contador de préstamos pendientes
   const pendingApprovalCount = loans.filter(
     l => l.status === 'PENDING' && l.approvalStatus === 'PENDING'
   ).length;
@@ -166,7 +178,6 @@ export function Loans() {
     );
   }
 
-  // Calcular métricas
   const totalLoans = filteredLoans.length;
   const activeLoans = filteredLoans.filter(l => l.status === 'ACTIVE').length;
   const totalPortfolio = filteredLoans.reduce((sum, loan) => sum + loan.principalAmount, 0);
@@ -174,7 +185,6 @@ export function Loans() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Préstamos</h1>
@@ -186,7 +196,6 @@ export function Loans() {
         </Button>
       </div>
 
-      {/* ✅ NUEVO: Alerta de préstamos pendientes de aprobación */}
       {pendingApprovalCount > 0 && (
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="flex items-center justify-between py-4">
@@ -212,7 +221,6 @@ export function Loans() {
         </Card>
       )}
 
-      {/* Métricas Rápidas */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="pt-6">
@@ -260,7 +268,6 @@ export function Loans() {
         </Card>
       </div>
 
-      {/* Filtros */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center gap-3 flex-wrap">
@@ -283,9 +290,9 @@ export function Loans() {
                 <SelectItem value="PENDING">Pendientes</SelectItem>
                 <SelectItem value="DEFAULTED">Vencidos</SelectItem>
                 <SelectItem value="PAID">Pagados</SelectItem>
+                <SelectItem value="REJECTED">Rechazados</SelectItem>
               </SelectContent>
             </Select>
-            {/* ✅ NUEVO: Filtro de aprobación */}
             <Select value={approvalFilter} onValueChange={setApprovalFilter}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Aprobación" />
@@ -301,7 +308,6 @@ export function Loans() {
         </CardContent>
       </Card>
 
-      {/* Tabla de Préstamos */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -323,6 +329,7 @@ export function Loans() {
                   <TableHead>Saldo</TableHead>
                   <TableHead>Tasa</TableHead>
                   <TableHead>Plazo</TableHead>
+                  <TableHead>Método</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Aprobación</TableHead>
                   <TableHead>Fecha</TableHead>
@@ -343,12 +350,12 @@ export function Loans() {
                     <TableCell>{formatCurrency(loan.currentBalance)}</TableCell>
                     <TableCell>{loan.interestRate}%</TableCell>
                     <TableCell>{loan.termMonths} meses</TableCell>
+                    <TableCell>{getAmortizationBadge(loan.amortizationMethod)}</TableCell>
                     <TableCell>{getStatusBadge(loan.status)}</TableCell>
                     <TableCell>{getApprovalBadge(loan)}</TableCell>
                     <TableCell>{formatDate(loan.createdAt)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {/* ✅ NUEVO: Botones de Aprobar/Rechazar para préstamos pendientes */}
                         {loan.status === 'PENDING' && loan.approvalStatus === 'PENDING' && (
                           <>
                             <Button
@@ -377,6 +384,20 @@ export function Loans() {
                             </Button>
                           </>
                         )}
+                        {(loan.approvalStatus === 'PENDING' || loan.approvalStatus === 'REJECTED') && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-gray-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => {
+                              setLoanToDelete(loan);
+                              setIsDeleteModalOpen(true);
+                            }}
+                            title="Eliminar préstamo"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -399,7 +420,6 @@ export function Loans() {
         {pendingApprovalCount > 0 && ` · ${pendingApprovalCount} pendiente(s) de aprobación`}
       </div>
 
-      {/* ✅ NUEVO: Modal de Confirmación de Aprobación */}
       <Dialog open={isApproveModalOpen} onOpenChange={setIsApproveModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -411,7 +431,6 @@ export function Loans() {
               Al aprobar este préstamo, se activará y el cliente podrá comenzar a pagar.
             </DialogDescription>
           </DialogHeader>
-          
           {selectedLoan && (
             <div className="space-y-4 py-4">
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
@@ -422,7 +441,7 @@ export function Loans() {
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Monto:</span>
                   <span className="font-bold text-blue-700">{formatCurrency(selectedLoan.principalAmount)}</span>
-                </div>
+                </div> 
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Tasa:</span>
                   <span className="font-medium">{selectedLoan.interestRate}%</span>
@@ -432,16 +451,14 @@ export function Loans() {
                   <span className="font-medium">{selectedLoan.termMonths} meses</span>
                 </div>
               </div>
-              
               <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                 <p className="text-sm text-green-800">
-                  <strong>⚠️ Importante:</strong> Esta acción activará el préstamo inmediatamente.
+                  <strong>️ Importante:</strong> Esta acción activará el préstamo inmediatamente.
                   Asegúrate de haber revisado la documentación del cliente.
                 </p>
               </div>
             </div>
           )}
-          
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsApproveModalOpen(false)}>
               Cancelar
@@ -457,7 +474,6 @@ export function Loans() {
         </DialogContent>
       </Dialog>
 
-      {/* ✅ NUEVO: Modal de Rechazo con Razón */}
       <Dialog open={isRejectModalOpen} onOpenChange={setIsRejectModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -469,7 +485,6 @@ export function Loans() {
               Indica la razón del rechazo. Esta información quedará registrada.
             </DialogDescription>
           </DialogHeader>
-          
           {selectedLoan && (
             <div className="space-y-4 py-4">
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
@@ -482,7 +497,6 @@ export function Loans() {
                   <span className="font-bold">{formatCurrency(selectedLoan.principalAmount)}</span>
                 </div>
               </div>
-              
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
                   Razón del rechazo *
@@ -495,15 +509,13 @@ export function Loans() {
                   className="resize-none"
                 />
               </div>
-              
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                 <p className="text-sm text-red-800">
-                  <strong>⚠️ Importante:</strong> El préstamo quedará en estado rechazado y no podrá ser activado.
+                  <strong>️ Importante:</strong> El préstamo quedará en estado rechazado y no podrá ser activado.
                 </p>
               </div>
             </div>
           )}
-          
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setIsRejectModalOpen(false);
@@ -517,6 +529,58 @@ export function Loans() {
               className="bg-red-600 hover:bg-red-700"
             >
               {isProcessing ? 'Rechazando...' : '❌ Rechazar Préstamo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <Trash2 className="w-5 h-5" />
+              Eliminar Préstamo
+            </DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar este préstamo? Esta acción no se puede deshacer y se eliminará toda la información asociada (calendario de pagos, historial, etc.).
+            </DialogDescription>
+          </DialogHeader>
+          {loanToDelete && (
+            <div className="space-y-4 py-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Cliente:</span>
+                  <span className="font-medium">{loanToDelete.clientName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Monto:</span>
+                  <span className="font-bold text-red-700">{formatCurrency(loanToDelete.principalAmount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Estado:</span>
+                  <span className="font-medium">{loanToDelete.status}</span>
+                </div>
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-800">
+                  <strong>⚠️ Advertencia:</strong> Asegúrate de que este préstamo no tenga pagos registrados ni actividad financiera. Esta acción no se puede deshacer.
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsDeleteModalOpen(false);
+              setLoanToDelete(null);
+            }}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleDeleteLoan} 
+              disabled={isProcessing}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isProcessing ? 'Eliminando...' : '️ Sí, eliminar definitivamente'}
             </Button>
           </DialogFooter>
         </DialogContent>

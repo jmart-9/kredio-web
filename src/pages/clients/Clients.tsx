@@ -148,7 +148,7 @@ export function Clients() {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
-              Lista de Clientes
+              Listado de Clientes
             </CardTitle>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -285,7 +285,7 @@ export function Clients() {
                 placeholder="Dirección completa"
               />
             </div>
-            {/* ✅ NUEVO: Selector de Cartera */}
+            {/* Selector de Cartera */}
             <div className="space-y-2">
               <Label htmlFor="portfolioId">Cartera Asignada</Label>
               <Select

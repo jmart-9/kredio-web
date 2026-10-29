@@ -8,44 +8,46 @@ interface AuthState {
   login: (userData: User, token: string, countryCode?: string) => void;
   logout: () => void;
   setCountryCode: (code: string) => void;
-  hasPermission: (permissionCode: string) => boolean; // ✅ AGREGADO
+  hasPermission: (permissionCode: string) => boolean;
 }
 
+// Inicializar desde localStorage
 const storedUser = localStorage.getItem('kredio_user');
+const storedToken = localStorage.getItem('kredio_token');
 const initialUser: User | null = storedUser ? JSON.parse(storedUser) : null;
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: initialUser,
-  token: localStorage.getItem('kredio_token'),
+  token: storedToken,
   countryCode: localStorage.getItem('kredio_country') || 'SV',
-  
-  login: (userData, token, countryCode = 'SV') => {
+
+  login: (userData: User, token: string, countryCode: string = 'SV') => {
+    console.log('💾 Guardando en localStorage:', { userData, token: token.substring(0, 20) + '...' });
+    
     localStorage.setItem('kredio_token', token);
     localStorage.setItem('kredio_user', JSON.stringify(userData));
     localStorage.setItem('kredio_country', countryCode);
+    
     set({ user: userData, token, countryCode });
   },
-  
+
   logout: () => {
+    console.log('🚪 Cerrando sesión...');
     localStorage.removeItem('kredio_token');
     localStorage.removeItem('kredio_user');
     localStorage.removeItem('kredio_country');
     set({ user: null, token: null, countryCode: 'SV' });
   },
-  
-  setCountryCode: (code) => {
+
+  setCountryCode: (code: string) => {
     localStorage.setItem('kredio_country', code);
     set({ countryCode: code });
   },
 
-  // ✅ FUNCIÓN MÁGICA PARA VERIFICAR PERMISOS
   hasPermission: (permissionCode: string) => {
     const { user } = get();
     if (!user || !user.permissions) return false;
-    
-    // Si el usuario tiene el permiso comodín (ej. Admin Global), permite todo
     if (user.permissions.includes('GLOBAL:MANAGE')) return true;
-    
     return user.permissions.includes(permissionCode);
-  }
+  },
 }));
